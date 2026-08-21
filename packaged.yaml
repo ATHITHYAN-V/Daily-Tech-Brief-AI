@@ -13,8 +13,12 @@ Parameters:
     Default: daily-tech-brief-content-bucket
   BedrockModelId:
     Type: String
-    Description: The Bedrock model ID to use for editorial analysis
-    Default: anthropic.claude-3-5-sonnet-20240620-v1:0
+    Description: The Bedrock inference profile ID to use for editorial analysis
+    Default: us.amazon.nova-pro-v1:0
+  BedrockRegion:
+    Type: String
+    Description: The Bedrock runtime region for inference profiles
+    Default: us-east-1
   PollyVoiceId:
     Type: String
     Description: The Amazon Polly Voice ID (must support Neural/Newscaster style if
@@ -90,10 +94,16 @@ Resources:
             Action:
             - bedrock:InvokeModel
             Resource:
-              Fn::Sub: arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}
+            - arn:aws:bedrock:*::foundation-model/*
+            - Fn::Sub: arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*
           - Effect: Allow
             Action:
             - polly:SynthesizeSpeech
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - aws-marketplace:ViewSubscriptions
+            - aws-marketplace:Subscribe
             Resource: '*'
   DailyTechBriefLambda:
     Type: AWS::Lambda::Function
@@ -114,6 +124,8 @@ Resources:
             Ref: ContentBucket
           BEDROCK_MODEL_ID:
             Ref: BedrockModelId
+          BEDROCK_REGION:
+            Ref: BedrockRegion
           POLLY_VOICE_ID:
             Ref: PollyVoiceId
           POLLY_ENGINE:
@@ -121,7 +133,7 @@ Resources:
           MOCK_MODE: 'false'
       Code:
         S3Bucket: daily-tech-brief-deploy-225989351123
-        S3Key: 21a8f381b4ecb5643ac9518feb331a8e
+        S3Key: 9d047a32dd868cf8800550adcd9b88df
   DailyScheduleRule:
     Type: AWS::Events::Rule
     Properties:

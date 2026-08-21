@@ -89,5 +89,9 @@ def publish_episode(date: str, briefing_data: dict, audio_bytes: bytes, metadata
         "transcript": transcript_key
     }
     
-    storage.upload_json("latest.json", latest_data)
-    logger.info("Successfully published episode and updated latest.json")
+    if audio_bytes:
+        storage.upload_json("latest.json", latest_data)
+        logger.info("Successfully published episode and updated latest.json")
+    else:
+        logger.warning("Audio generation failed, skipping latest.json update to prevent broken playback.")
+

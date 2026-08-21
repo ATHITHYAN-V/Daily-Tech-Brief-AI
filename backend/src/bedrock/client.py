@@ -8,50 +8,51 @@ logger = get_logger("BedrockClient")
 
 class BedrockClient:
     def __init__(self):
-        region = os.environ.get("AWS_REGION", "us-east-1")
-        self.model_id = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0")
+        bedrock_region = os.environ.get("BEDROCK_REGION", "us-east-1")
+        self.model_id = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0")
         
         try:
-            self.client = boto3.client("bedrock-runtime", region_name=region)
+            self.client = boto3.client("bedrock-runtime", region_name=bedrock_region)
         except Exception as e:
             logger.error(f"Failed to initialize Bedrock client: {e}")
             self.client = None
 
     def invoke_model(self, system_prompt: str, user_prompt: str) -> dict:
         """
-        Invoke Bedrock with Claude 3/3.5 Messages API format.
-        Will need modification if switching to Nova, but Claude 3/3.5 is the fallback/primary.
+        Invoke Bedrock using the Converse API for model-agnostic behavior.
+        Works with both Amazon Nova and Anthropic Claude models.
         """
         if not self.client:
             raise ValueError("Bedrock client is not initialized")
 
-        logger.info(f"Invoking Bedrock model: {self.model_id}")
+        logger.info("Configured BEDROCK_MODEL_ID: %s", os.environ.get("BEDROCK_MODEL_ID"))
+        logger.info("Invoking Bedrock model: %s", self.model_id)
 
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4096,
-            "system": system_prompt,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-            ],
-            "temperature": 0.3
-        }
+        import botocore
+        logger.info("Bedrock region: %s", self.client.meta.region_name if self.client else "unknown")
+        logger.info("Bedrock model ID repr: %r", self.model_id)
+        logger.info("Bedrock model ID length: %d", len(self.model_id))
+        
+        logger.info("boto3 version: %s", boto3.__version__)
+        logger.info("botocore version: %s", botocore.__version__)
 
         try:
-            response = self.client.invoke_model(
+            response = self.client.converse(
                 modelId=self.model_id,
-                body=json.dumps(body)
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": user_prompt}]
+                    }
+                ],
+                system=[{"text": system_prompt}],
+                inferenceConfig={
+                    "maxTokens": 4096,
+                    "temperature": 0.3
+                }
             )
             
-            response_body = json.loads(response.get('body').read())
-            
-            if 'content' in response_body and len(response_body['content']) > 0:
-                return response_body['content'][0]['text']
-            
-            return None
+            return response["output"]["message"]["content"][0]["text"]
             
         except ClientError as e:
             logger.error(f"Bedrock invocation failed: {e}")
