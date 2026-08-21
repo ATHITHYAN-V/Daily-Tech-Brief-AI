@@ -209,7 +209,7 @@ body {
 .c-top { display: flex; align-items: center; gap: 0.6rem; }
 .c-rank { font-size: 1.3rem; font-weight: 900; color: rgba(255,255,255,0.07); letter-spacing: -2px; }
 .card:hover .c-rank, .card-on .c-rank { color: rgba(99,102,241,0.3); }
-.c-cat { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.18rem 0.45rem; border-radius: 5px; border: 1px solid; }
+.c-cat { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.18rem 0.45rem; border-radius: 5px; border: 1px solid; }
 .cat-ai  { color:#a78bfa; background:rgba(167,139,250,0.08); border-color:rgba(167,139,250,0.2); }
 .cat-cloud{ color:#38bdf8; background:rgba(56,189,248,0.08);  border-color:rgba(56,189,248,0.2); }
 .cat-sec { color:#f87171; background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.2); }

@@ -17,6 +17,10 @@ const I = {
   Shield: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Star: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
   News: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>,
+  Cloud: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a5.5 5.5 0 0 0-1-10.91A7 7 0 0 0 3.86 11.5 5 5 0 0 0 4 21h13Z"/></svg>,
+  Cpu: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>,
+  Hash: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>,
+  BotSm: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
 }
 
 function catClass(cat = '') {
@@ -26,6 +30,15 @@ function catClass(cat = '') {
   if (c.includes('security') || c.includes('privacy')) return 'cat-sec'
   if (c.includes('hardware') || c.includes('chip')) return 'cat-hw'
   return 'cat-def'
+}
+
+function catIcon(cat = '') {
+  const c = cat.toLowerCase()
+  if (c.includes('ai') || c.includes('machine') || c.includes('model')) return <I.BotSm />
+  if (c.includes('cloud') || c.includes('aws') || c.includes('azure')) return <I.Cloud />
+  if (c.includes('security') || c.includes('privacy')) return <I.Shield />
+  if (c.includes('hardware') || c.includes('chip')) return <I.Cpu />
+  return <I.Hash />
 }
 
 // ── Kiro-style animated logo ─────────────────────────────
@@ -122,7 +135,10 @@ function Card({ story, idx, on, cRef }) {
     <article className={`card ${on ? 'card-on' : ''}`} ref={cRef} style={{ animationDelay: `${idx * 0.06}s` }} id={`story-${idx+1}`}>
       <div className="c-top">
         <span className="c-rank">{String(idx+1).padStart(2,'0')}</span>
-        <span className={`c-cat ${catClass(story.category)}`}>{story.category}</span>
+        <span className={`c-cat ${catClass(story.category)}`}>
+          {catIcon(story.category)}
+          {story.category}
+        </span>
         {story.importance_score > 0 && (
           <span className="c-imp"><span className="c-imp-bar" style={{width:`${story.importance_score}%`}}/>{story.importance_score}</span>
         )}
