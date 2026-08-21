@@ -97,45 +97,59 @@ const AudioPlayer = ({ src, date, storiesCount }) => {
 }
 
 function App() {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [status, setStatus] = useState('LOADING')
   const [latest, setLatest] = useState(null)
   const [stories, setStories] = useState([])
 
   useEffect(() => {
-    // Determine base URL depending on if we are running locally or deployed.
-    // In production (Amplify), the S3 bucket URL should be configured via env var or CORS proxy.
-    // For local demo, we fetch from the public folder.
-    const baseUrl = import.meta.env.VITE_S3_BASE_URL || ''
+    const fetchEpisode = async () => {
+      const baseUrl = import.meta.env.VITE_S3_BASE_URL || ''
+      try {
+        const res = await fetch(`${baseUrl}/latest.json`)
+        
+        if (res.status === 404 || res.status === 403) {
+          setStatus('NO_EPISODE')
+          return
+        }
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+        
+        const data = await res.json()
+        if (!data || !data.date || !data.audio || !data.stories) {
+          setStatus('NO_EPISODE')
+          return
+        }
 
-    fetch(`${baseUrl}/latest.json`)
-      .then(res => {
-        if (!res.ok) throw new Error("Could not find latest episode.")
-        return res.json()
-      })
-      .then(data => {
+        const storiesRes = await fetch(`${baseUrl}/${data.stories}`)
+        if (storiesRes.status === 404 || storiesRes.status === 403) {
+           setStatus('NO_EPISODE')
+           return
+        }
+        
+        if (!storiesRes.ok) {
+           throw new Error(`HTTP ${storiesRes.status}`)
+        }
+
+        const storiesData = await storiesRes.json()
+        if (!storiesData || !storiesData.stories) {
+          setStatus('NO_EPISODE')
+          return
+        }
+
         setLatest(data)
-        return fetch(`${baseUrl}/${data.stories}`)
-      })
-      .then(res => res.json())
-      .then(storiesData => {
-        setStories(storiesData.stories || [])
-        setLoading(false)
-      })
-      .catch(err => {
+        setStories(storiesData.stories)
+        setStatus('READY')
+
+      } catch (err) {
         console.error(err)
-        setError("Failed to load today's briefing. Please try again later.")
-        setLoading(false)
-      })
+        setStatus('ERROR')
+      }
+    }
+
+    fetchEpisode()
   }, [])
-
-  if (loading) {
-    return <div className="loading-spinner"></div>
-  }
-
-  if (error) {
-    return <div className="error-message">{error}</div>
-  }
 
   const baseUrl = import.meta.env.VITE_S3_BASE_URL || ''
 
@@ -144,36 +158,70 @@ function App() {
       <header className="header fade-in">
         <h1>DAILY TECH BRIEF</h1>
         <div className="tagline">While you were away, technology changed.</div>
-        <div className="date">{new Date(latest.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        {status === 'READY' && latest && (
+          <div className="date">{new Date(latest.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        )}
       </header>
 
       <main>
-        {latest.audio ? (
-          <AudioPlayer src={`${baseUrl}/${latest.audio}`} date={latest.date} storiesCount={stories.length} />
-        ) : (
-          <div className="error-message">Audio briefing is unavailable for today.</div>
+        {status === 'LOADING' && (
+          <div className="empty-state fade-in">
+             <div className="loading-spinner" style={{ margin: '2rem auto' }}></div>
+             <h2>Preparing today's briefing...</h2>
+             <p>The autonomous news agent is checking for today's episode.</p>
+          </div>
         )}
 
-        <div className="stories-section">
-          <div className="section-title" style={{marginTop: '2rem'}}>
-            TODAY'S TOP STORIES
-          </div>
-          
-          {stories.map((story, idx) => (
-            <div key={idx} className="story-card fade-in" style={{animationDelay: `${0.1 * (idx + 1)}s`}}>
-              <div className="story-header">
-                <span className="story-rank">{(idx + 1).toString().padStart(2, '0')}</span>
-                <span className="story-category">{story.category}</span>
-              </div>
-              <div className="story-title">{story.headline}</div>
-              <div className="story-why">{story.why_it_matters}</div>
-              <div className="story-source">
-                <span>Source: {story.source}</span>
-                <a href={story.url} target="_blank" rel="noopener noreferrer" className="story-link">Read original →</a>
-              </div>
+        {status === 'NO_EPISODE' && (
+          <div className="empty-state fade-in">
+            <h2>🌅 Today's briefing is being prepared.</h2>
+            <p>Our autonomous AI news editor runs automatically and creates today's Top 10 technology briefing.</p>
+            <div className="empty-state-features">
+               <span>No signup</span> &middot; <span>No login</span> &middot; <span>Completely free</span>
             </div>
-          ))}
-        </div>
+            <div className="empty-status-indicator">
+              <span className="pulse-dot"></span> Agent is waiting for the next briefing
+            </div>
+            <div className="empty-status-time">
+              🕐 Daily generation: 06:00 UTC
+            </div>
+          </div>
+        )}
+
+        {status === 'ERROR' && (
+          <div className="empty-state fade-in">
+            <h2>We couldn't reach today's briefing.</h2>
+            <p>Please try again shortly.</p>
+            <button className="retry-btn" onClick={() => window.location.reload()}>Try Again</button>
+          </div>
+        )}
+
+        {status === 'READY' && latest && (
+          <>
+            <AudioPlayer src={`${baseUrl}/${latest.audio}`} date={latest.date} storiesCount={stories.length} />
+
+            <div className="stories-section">
+              <div className="section-title" style={{marginTop: '2rem'}}>
+                TODAY'S TOP STORIES
+              </div>
+              
+              {stories.map((story, idx) => (
+                <div key={idx} className="story-card fade-in" style={{animationDelay: `${0.1 * (idx + 1)}s`}}>
+                  <div className="story-header">
+                    <span className="story-rank">{(idx + 1).toString().padStart(2, '0')}</span>
+                    <span className="story-category">{story.category}</span>
+                  </div>
+                  <div className="story-title">{story.headline}</div>
+                  <div className="story-why">{story.why_it_matters}</div>
+                  <div className="story-source">
+                    <span>Source: {story.source}</span>
+                    <a href={story.url} target="_blank" rel="noopener noreferrer" className="story-link">Read original →</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </main>
 
       <footer className="footer fade-in">

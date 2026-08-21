@@ -121,7 +121,7 @@ Resources:
           MOCK_MODE: 'false'
       Code:
         S3Bucket: daily-tech-brief-deploy-225989351123
-        S3Key: 83c3097710c2341bed28f6a1bf2bdbdf
+        S3Key: 21a8f381b4ecb5643ac9518feb331a8e
   DailyScheduleRule:
     Type: AWS::Events::Rule
     Properties:
