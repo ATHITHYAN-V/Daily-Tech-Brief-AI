@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Daily Tech Brief: Autonomous AI Technology News Agent (Backend)'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'prod']
+  S3BucketName:
+    Type: String
+    Description: 'The name of the private S3 bucket to store generated episodes'
+    Default: 'daily-tech-brief-content-bucket'
+  BedrockModelId:
+    Type: String
+    Description: 'The Bedrock model ID to use for editorial analysis'
+    Default: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+  PollyVoiceId:
+    Type: String
+    Description: 'The Amazon Polly Voice ID (must support Neural/Newscaster style if using Neural)'
+    Default: 'Matthew'
+  PollyEngine:
+    Type: String
+    Default: 'neural'
+    AllowedValues: ['standard', 'neural']
+  AmplifyDomainName:
+    Type: String
+    Description: 'The expected origin for CORS (e.g. https://main.dXXXXXXXX.amplifyapp.com). Use * for testing.'
+    Default: '*'
+
+Resources:
+  # 1. Content Storage Bucket
+  ContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: ['GET']
+            AllowedOrigins: [!Ref AmplifyDomainName]
+            MaxAge: 300
+
+  # 2. Bucket Policy for Public Read Access to Episodes
+  # While it's a private bucket structurally, we need the frontend to fetch the JSON/MP3 directly.
+  # So we scope public read to just the necessary objects (or everything if preferred for simplicity)
+  ContentBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ContentBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${ContentBucket}/*'
+
+  # 3. Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DailyTechBriefAgentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                Resource: !Sub 'arn:aws:s3:::${ContentBucket}/*'
+              - Effect: Allow
+                Action:
+                  - 'bedrock:InvokeModel'
+                Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}'
+              - Effect: Allow
+                Action:
+                  - 'polly:SynthesizeSpeech'
+                Resource: '*'
+
+  # 4. Lambda Function
+  DailyTechBriefLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'daily-tech-brief-agent-${Environment}'
+      Handler: src.handler.main_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.11
+      Timeout: 300 # 5 minutes is plenty for fetch + bedrock + polly
+      MemorySize: 256
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref ContentBucket
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          POLLY_VOICE_ID: !Ref PollyVoiceId
+          POLLY_ENGINE: !Ref PollyEngine
+          MOCK_MODE: 'false'
+      Code: ../build
+
+  # 5. EventBridge Rule to schedule Lambda daily at 06:00 UTC
+  DailyScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: 'daily-tech-brief-schedule'
+      ScheduleExpression: 'cron(0 6 * * ? *)'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !GetAtt DailyTechBriefLambda.Arn
+          Id: 'DailyTechBriefLambdaTarget'
+
+  # 6. Allow EventBridge to invoke the Lambda
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DailyTechBriefLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt DailyScheduleRule.Arn
+
+Outputs:
+  BucketName:
+    Description: 'The S3 bucket storing the episodes'
+    Value: !Ref ContentBucket
+  LambdaFunctionName:
+    Description: 'The Lambda function generating the daily brief'
+    Value: !Ref DailyTechBriefLambda

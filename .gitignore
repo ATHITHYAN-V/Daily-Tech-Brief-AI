@@ -1,0 +1,22 @@
+# Python / Backend
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+build/
+local_output/
+packaged.yaml
+.DS_Store
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

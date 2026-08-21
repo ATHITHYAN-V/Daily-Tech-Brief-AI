@@ -1,0 +1,15 @@
+{
+  "date": "2026-08-21",
+  "stories": [
+    {
+      "rank": 1,
+      "category": "AI",
+      "headline": "Mock AI Story",
+      "source": "Mock Source",
+      "url": "https://example.com/mock",
+      "importance_score": 95,
+      "why_it_matters": "Mock matters",
+      "briefing_segment": "Let's start with AI. A mock story happened."
+    }
+  ]
+}
